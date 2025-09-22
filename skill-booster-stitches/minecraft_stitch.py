@@ -9,7 +9,7 @@ matcher = cv2.BFMatcher()
 
 frame_interval = 60
 frame_count = 0
-matches_number = 100
+matches_number = 10000
 
 #get first frame of video
 ret, stiched = cap.read()
@@ -40,18 +40,19 @@ while True:
 	"""
 	matches = matcher.knnMatch(des1, des2, k=2)
 	"""
+	"""
 	#filter matches
 	good = []
 	for m in matches:
-		if m.distance < 50:
+		if m.distance < 25:
 			good.append([m])
-	
+	"""
 	
 	
 	#get coordinates of matches
 	first_run = True
-	for mat in good[:matches_number]:
-		mat = mat[0]
+	for mat in matches[:matches_number]:
+		mat = mat
 		if first_run == True:
 			stiched_coords = np.array([kp1[mat.queryIdx].pt])
 			frame_coords = np.array([kp2[mat.trainIdx].pt])
@@ -72,7 +73,7 @@ while True:
 	cv2.imshow('aligned frame', aligned_frame)
 	"""
 	#H = cv2.getAffineTransform(frame_coords, stiched_coords)
-	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords, ransacReprojThreshold=1)
+	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords, ransacReprojThreshold=50)
 
 	stiched_height, stiched_width = stiched.shape[:2]
 	frame_height, frame_width = frame.shape[:2]
