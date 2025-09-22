@@ -59,11 +59,51 @@ while True:
 	#H = cv2.getAffineTransform(frame_coords, stiched_coords)
 	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords)
 
-	stiched_canvas = cv2.copyMakeBorder(stiched, 100, 0, 100, 100, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-	height, width = stiched_canvas.shape[:2]
-	print(height, width)
-	aligned_frame = cv2.warpAffine(frame, H, (width, height))
-	cv2.imshow('framebruh', stiched_canvas)
+	stiched_height, stiched_width = stiched.shape[:2]
+	frame_height, frame_width = frame.shape[:2]
+	stiched_corners = np.array([
+		[0, 0],
+		[stiched_width, 0],
+		[stiched_width, stiched_height],
+		[0, stiched_height],
+	])
+	frame_corners = np.array([
+		[0, 0],
+		[frame_width, 0],
+		[frame_width, frame_height],
+		[0, frame_height],
+	])
+	print(frame_corners)
+	new_corners = cv2.transform(np.array([frame_corners]), H)
+	print(new_corners)
+	all_corners = np.vstack((new_corners[0], stiched_corners))
+	print(all_corners)
+	[xmin, ymin] = all_corners.min(axis=0).flatten()
+	[xmax, ymax] = all_corners.max(axis=0).flatten()
+	print([xmin, ymin])
+	print([xmax, ymax])
+	
+	translation = [-xmin, -ymin]
+	H_translation = np.array([[1, 0, -xmin], [0, 1, -ymin]], dtype=np.float32)
+	
+	# Step 3: Warp img2 onto the canvas
+	print(H_translation)
+	print(H)
+	
+	
+	H_translation = np.vstack((H_translation, [0, 0, 1]))
+	H = np.vstack((H, [0, 0, 1]))
+	transformation_matrix = H_translation @ H
+	transformation_matrix = transformation_matrix[:2]
+	print(transformation_matrix)
+	stitched_img = cv2.warpAffine(frame, transformation_matrix, (xmax-xmin, ymax-ymin))
+	stitched_img[translation[1]:stiched_height+translation[1], translation[0]:stiched_width+translation[0]] = stiched
+		
+	#stiched_canvas = cv2.copyMakeBorder(stiched, 100, 0, 100, 100, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+	#height, width = stiched_canvas.shape[:2]
+	#print(height, width)
+	#aligned_frame = cv2.warpAffine(frame, H, (width, height))
+	cv2.imshow('framebruh', stitched_img)
 	
 	"""
 	print(H)
