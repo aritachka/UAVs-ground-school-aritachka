@@ -7,28 +7,25 @@ sift = cv2.SIFT_create()
 orb = cv2.ORB_create()
 matcher = cv2.BFMatcher()
 
-frame_interval = 60
+frame_interval = 30
 frame_count = 0
 matches_number = 10000
 
 #get first frame of video
 ret, stiched = cap.read()
 frame_count += 1
-
+cv2.imshow('framebruh', stiched)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 while True:
-	#downsampling
-	if not frame_count % frame_interval == 0:
-		frame_count += 1
-		ret, frame = cap.read()
-		if ret == False:
-			break
-		continue
+	ret, frame = cap.read()
+	if not ret: 
+		break
 	frame_count += 1
+	if frame_count % frame_interval != 0:
+		continue
 	
 	#get matches
-	ret, frame = cap.read()
-	if ret == False:
-		break
 	kp1, des1 = orb.detectAndCompute(stiched, None)
 	kp2, des2 = orb.detectAndCompute(frame, None)
 	
@@ -47,7 +44,7 @@ while True:
 	#filter matches
 	good = []
 	for m in matches:
-		if m.distance < 25:
+		if m.distance < 15:
 			good.append([m])
 	
 	
@@ -64,8 +61,8 @@ while True:
 
 		stiched_coords = np.vstack((stiched_coords, np.array([kp1[mat.queryIdx].pt])))
 		frame_coords = np.vstack((frame_coords, np.array([kp2[mat.trainIdx].pt])))
-	print(stiched_coords)
-	print(frame_coords)
+	#print(stiched_coords)
+	#print(frame_coords)
 	#find transformation
 	"""
 	H = cv2.findHomography(frame_coords, stiched_coords, cv2.RANSAC, 2.0)
@@ -76,7 +73,7 @@ while True:
 	cv2.imshow('aligned frame', aligned_frame)
 	"""
 	#H = cv2.getAffineTransform(frame_coords, stiched_coords)
-	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords, ransacReprojThreshold=1)
+	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords, ransacReprojThreshold=2, maxIters=5000, confidence=0.999)
 
 	stiched_height, stiched_width = stiched.shape[:2]
 	frame_height, frame_width = frame.shape[:2]
@@ -85,26 +82,33 @@ while True:
 		[stiched_width, 0],
 		[stiched_width, stiched_height],
 		[0, stiched_height],
-	])
+	], dtype=np.float32)
 	frame_corners = np.array([
 		[0, 0],
 		[frame_width, 0],
 		[frame_width, frame_height],
 		[0, frame_height],
-	])
-	print(frame_corners)
+	], dtype=np.float32)
+	#print(frame_corners)
 	new_corners = cv2.transform(np.array([frame_corners]), H)
-	print(new_corners)
+	#print(new_corners)
 	all_corners = np.vstack((new_corners[0], stiched_corners))
-	print(all_corners)
-	[xmin, ymin] = all_corners.min(axis=0).flatten()
-	[xmax, ymax] = all_corners.max(axis=0).flatten()
-	print([xmin, ymin])
-	print([xmax, ymax])
+	#print(all_corners)
+	[xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(np.int32)
+	[xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(np.int32)
+	#print([xmin, ymin])
+	#print([xmax, ymax])
 	
-	translation = [-xmin, -ymin]
+	translation = [int(-xmin), int(-ymin)]
 	H_translation = np.array([[1, 0, -xmin], [0, 1, -ymin]], dtype=np.float32)
 	
+	# After: H, inliers = cv2.estimateAffinePartial2D(...)
+	if H is not None:
+		print(f"Transform H:\n{H}")
+		print(f"Translation: [{H[0,2]:.2f}, {H[1,2]:.2f}]")
+		print(f"Rotation angle: {np.arctan2(H[1,0], H[0,0]) * 180/np.pi:.2f} degrees")
+		if inliers is not None:
+			print(f"Inliers: {np.count_nonzero(inliers)}/{len(inliers)}")
 	# Step 3: Warp img2 onto the canvas
 	
 	
@@ -112,6 +116,7 @@ while True:
 	H = np.vstack((H, [0, 0, 1]))
 	transformation_matrix = H_translation @ H
 	transformation_matrix = transformation_matrix[:2]
+	
 	
 	stitched_img = cv2.warpAffine(frame, transformation_matrix, (xmax-xmin, ymax-ymin))
 	stitched_img[translation[1]:stiched_height+translation[1], translation[0]:stiched_width+translation[0]] = stiched
@@ -121,7 +126,7 @@ while True:
 	#height, width = stiched_canvas.shape[:2]
 	#print(height, width)
 	#aligned_frame = cv2.warpAffine(frame, H, (width, height))
-	cv2.imshow('framebruh', stitched_img)
+	cv2.imshow('framebruh', stiched)
 	
 	"""
 	print(H)
