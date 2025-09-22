@@ -9,7 +9,7 @@ matcher = cv2.BFMatcher()
 
 frame_interval = 60
 frame_count = 0
-matches_number = 1000
+matches_number = 100
 
 #get first frame of video
 ret, stiched = cap.read()
@@ -27,17 +27,30 @@ while True:
 	ret, frame = cap.read()
 	kp1, des1 = orb.detectAndCompute(stiched, None)
 	kp2, des2 = orb.detectAndCompute(frame, None)
-	matches = matcher.knnMatch(des1, des2, k=2)
 	
+	
+	bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+	
+	# Match descriptors.
+	matches = bf.match(des1,des2)
+	
+	# Sort them in the order of their distance.
+	matches = sorted(matches, key = lambda x:x.distance)
+	
+	"""
+	matches = matcher.knnMatch(des1, des2, k=2)
+	"""
 	#filter matches
 	good = []
-	for m,n in matches:
-		if m.distance < 0.95*n.distance:
+	for m in matches:
+		if m.distance < 50:
 			good.append([m])
+	
+	
 	
 	#get coordinates of matches
 	first_run = True
-	for mat in good[0:matches_number]:
+	for mat in good[:matches_number]:
 		mat = mat[0]
 		if first_run == True:
 			stiched_coords = np.array([kp1[mat.queryIdx].pt])
