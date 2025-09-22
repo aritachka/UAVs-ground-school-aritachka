@@ -20,11 +20,15 @@ while True:
 	if not frame_count % frame_interval == 0:
 		frame_count += 1
 		ret, frame = cap.read()
+		if ret == False:
+			break
 		continue
 	frame_count += 1
 	
 	#get matches
 	ret, frame = cap.read()
+	if ret == False:
+		break
 	kp1, des1 = orb.detectAndCompute(stiched, None)
 	kp2, des2 = orb.detectAndCompute(frame, None)
 	
