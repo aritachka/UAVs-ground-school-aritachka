@@ -4,6 +4,7 @@ import numpy as np
 
 cap = cv2.VideoCapture("Minecraft_stitch_test.mp4")
 sift = cv2.SIFT_create()
+orb = cv2.ORB_create()
 matcher = cv2.BFMatcher()
 
 frame_interval = 60
@@ -12,6 +13,7 @@ matches_number = 1000
 
 #get first frame of video
 ret, stiched = cap.read()
+frame_count += 1
 
 while True:
 	#downsampling
@@ -23,14 +25,14 @@ while True:
 	
 	#get matches
 	ret, frame = cap.read()
-	kp1, des1 = sift.detectAndCompute(stiched, None)
-	kp2, des2 = sift.detectAndCompute(frame, None)
+	kp1, des1 = orb.detectAndCompute(stiched, None)
+	kp2, des2 = orb.detectAndCompute(frame, None)
 	matches = matcher.knnMatch(des1, des2, k=2)
 	
 	#filter matches
 	good = []
 	for m,n in matches:
-		if m.distance < 0.75*n.distance:
+		if m.distance < 0.95*n.distance:
 			good.append([m])
 	
 	#get coordinates of matches
@@ -57,7 +59,7 @@ while True:
 	cv2.imshow('aligned frame', aligned_frame)
 	"""
 	#H = cv2.getAffineTransform(frame_coords, stiched_coords)
-	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords)
+	H, inliers = cv2.estimateAffinePartial2D(frame_coords, stiched_coords, ransacReprojThreshold=1)
 
 	stiched_height, stiched_width = stiched.shape[:2]
 	frame_height, frame_width = frame.shape[:2]
@@ -87,17 +89,16 @@ while True:
 	H_translation = np.array([[1, 0, -xmin], [0, 1, -ymin]], dtype=np.float32)
 	
 	# Step 3: Warp img2 onto the canvas
-	print(H_translation)
-	print(H)
 	
 	
 	H_translation = np.vstack((H_translation, [0, 0, 1]))
 	H = np.vstack((H, [0, 0, 1]))
 	transformation_matrix = H_translation @ H
 	transformation_matrix = transformation_matrix[:2]
-	print(transformation_matrix)
+	
 	stitched_img = cv2.warpAffine(frame, transformation_matrix, (xmax-xmin, ymax-ymin))
 	stitched_img[translation[1]:stiched_height+translation[1], translation[0]:stiched_width+translation[0]] = stiched
+	stiched = stitched_img
 		
 	#stiched_canvas = cv2.copyMakeBorder(stiched, 100, 0, 100, 100, cv2.BORDER_CONSTANT, value=(0, 0, 0))
 	#height, width = stiched_canvas.shape[:2]
@@ -130,7 +131,7 @@ while True:
 	
 	alpha = 0.5
 	#stiched = cv2.addWeighted(stiched_canvas, 1 - alpha, aligned_frame, alpha, 0)
-	cv2.imshow('frame', stiched)
+	#cv2.imshow('frame', stiched)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
 	
